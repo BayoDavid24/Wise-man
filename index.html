@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Wise-Man</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+  <div class="w-full max-w-md bg-white shadow-xl rounded-xl overflow-hidden">
+    <div class="bg-[#00567a] text-white text-xl font-bold p-4">Wise-Man</div>
+    <div id="chat" class="p-4 space-y-3 h-96 overflow-y-auto text-sm"></div>
+
+    <div class="p-4 border-t">
+      <form id="chatForm" class="flex space-x-2">
+        <input id="userInput" type="text" class="flex-1 border rounded px-3 py-2" placeholder="Ask Wise-Man..." required />
+        <button class="bg-[#00567a] text-white px-4 py-2 rounded hover:bg-[#004a6d]">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const chat = document.getElementById("chat");
+    const chatForm = document.getElementById("chatForm");
+    const userInput = document.getElementById("userInput");
+
+    const API_KEY = "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";
+    const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+    const MODEL = "llama3-70b-8192";
+
+    const moods = [
+      { name: "Strict", prompt: "Respond with discipline, like a no-nonsense coach or teacher." }
+    ];
+
+    const appendMessage = (role, message) => {
+      const msg = document.createElement("div");
+      msg.className = role === "user" ? "text-right" : "text-left text-[#00567a]";
+      msg.innerHTML = `<p class="inline-block bg-${role === "user" ? "gray-200" : "blue-100"} p-2 rounded-lg">${message}</p>`;
+      chat.appendChild(msg);
+      chat.scrollTop = chat.scrollHeight;
+    };
+
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const userMessage = userInput.value.trim();
+      if (!userMessage) return;
+
+      appendMessage("user", userMessage);
+      userInput.value = "";
+
+      const mood = moods[Math.floor(Math.random() * moods.length)];
+      appendMessage("bot", `(${mood.name} mode)...`);
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${API_KEY}`
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [
+              { role: "system", content: mood.prompt },
+              { role: "user", content: userMessage }
+            ],
+            temperature: 0.9
+          })
+        });
+
+        const data = await response.json();
+        const lastBotMsg = document.querySelectorAll("#chat .text-left:last-child")[0];
+
+        if (data.choices && data.choices[0]) {
+          lastBotMsg.innerHTML = `<p class="inline-block bg-blue-100 p-2 rounded-lg"><strong>${mood.name}:</strong> ${data.choices[0].message.content.trim()}</p>`;
+        } else {
+          lastBotMsg.innerHTML = `<p class="inline-block bg-red-100 p-2 rounded-lg">Error: ${data.error?.message || "Unknown error"}</p>`;
+        }
+      } catch (err) {
+        console.error(err);
+        appendMessage("bot", "Something went wrong while thinking.");
+      }
+    });
+  </script>
+</body>
+</html>
